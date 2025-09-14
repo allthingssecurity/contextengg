@@ -208,10 +208,17 @@
       function className(n){ return n }
 
       (function init(){
-        try {
-          if (window.__DEMO__) { DATA = window.__DEMO__; render(); return; }
-        } catch (e) {}
-        fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() }).catch(_=> { DATA = null; document.getElementById('content').innerHTML = '<div class="block">Failed to load demo data.</div>' })
+        // Force embedded demo data to avoid any Pages fetch/caching issues
+        DATA = window.__DEMO__ || {scenarios:{}, kb:[], rules:[], tools:[]};
+        // Auto-select first scenario and pre-run simulation for immediate demo
+        const keys = Object.keys(DATA.scenarios||{});
+        if (keys.length > 0) {
+          state.scenario = keys[0];
+          state.query = DATA.scenarios[state.scenario] || '';
+          engineeredPrompt(state.query); generateOutputs();
+        }
+        state.active = 'prompt';
+        render();
       })();
     </script>
   </body>
