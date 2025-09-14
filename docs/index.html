@@ -120,10 +120,12 @@
         // Toolbar
         tools.innerHTML='';
         const sel = h('select'); sel.appendChild(opt('', 'Choose scenario…'));
-        Object.keys(DATA.scenarios).forEach(k=> sel.appendChild(opt(k,k)));
-        sel.onchange=()=>{ state.scenario=sel.value; state.query=DATA.scenarios[state.scenario]||''; run() };
+        if (DATA && DATA.scenarios) {
+          Object.keys(DATA.scenarios).forEach(k=> sel.appendChild(opt(k,k)));
+          sel.onchange=()=>{ state.scenario=sel.value; state.query=(DATA.scenarios||{})[state.scenario]||''; render() };
+        }
         const ta = h('textarea'); ta.style.flex='1'; ta.value=state.query; ta.oninput=()=> state.query=ta.value;
-        const btn = h('button','primary'); btn.textContent='Simulate'; btn.onclick=run;
+        const btn = h('button','primary'); btn.textContent= DATA? 'Simulate' : 'Loading…'; btn.disabled = !DATA; btn.onclick=run;
         tools.appendChild(sel); tools.appendChild(ta); tools.appendChild(btn);
         // Side panel
         ctx.innerHTML='';
@@ -154,18 +156,18 @@
           content.appendChild(block('User Query', mono(src.user||state.query||'')));
         }
         if(state.active==='outputs'){
-          content.appendChild(div(className('two'), block('Baseline (No Context Engineering)', mono(state.outputs.baseline)), block('Context‑Engineered', mono(state.outputs.engineered))));
+          content.appendChild(two(block('Baseline (No Context Engineering)', mono(state.outputs.baseline)), block('Context‑Engineered', mono(state.outputs.engineered))));
         }
         if(state.active==='scores'){
           const base = score(state.outputs.baseline, null, state.query);
           const eng = score(state.outputs.engineered, {instructions: state.selected.instructions, facts: state.selected.facts}, state.query);
           const left = block('Baseline', row(pill(`Sections ${base.sectionCov}`), pill(`Action ${base.actionability}`), pill(`Relevant ${base.relevance}`), pill(`Concise ${base.conciseness}`), pill(`Composite ${base.composite}`)));
           const right = block('Context‑Engineered', row(pill(`Sections ${eng.sectionCov}`), pill(`Action ${eng.actionability}`), pill(`Relevant ${eng.relevance}`), pill(`Concise ${eng.conciseness}`), pill(`Composite ${eng.composite}`)));
-          content.appendChild(div(className('two'), left, right));
+          content.appendChild(two(left, right));
         }
       }
 
-      function run(){ engineeredPrompt(state.query); generateOutputs(); render() }
+      function run(){ if(!DATA){ alert('Loading demo data…'); return } engineeredPrompt(state.query || (state.scenario? DATA.scenarios[state.scenario] : '')); generateOutputs(); state.active='prompt'; render() }
 
       function h(tag, cls){ const el=document.createElement(tag); if(cls) el.className=cls; return el }
       function block(title, ...children){ const b=h('div','block'); if(title) b.appendChild(div(str(title))); children.forEach(c=> b.appendChild(c)); return b }
@@ -175,11 +177,11 @@
       function mono(text){ const m=h('div','mono'); m.textContent=text; return m }
       function chip(text, kind){ const c=h('span','chip '+(kind||'')); c.textContent=text; return c }
       function div(...children){ const d=h('div'); children.forEach(c=> d.appendChild(c)); return d }
+      function two(a,b){ const t=h('div','two'); t.appendChild(a); t.appendChild(b); return t }
       function opt(v,l){ const o=document.createElement('option'); o.value=v; o.textContent=l; return o }
       function className(n){ return n }
 
-      fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() })
+      fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() }).catch(_=> { document.getElementById('content').innerHTML = '<div class="block">Failed to load demo data.</div>' })
     </script>
   </body>
   </html>
-
