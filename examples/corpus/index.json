@@ -1,0 +1,87 @@
+[
+  {
+    "id": "auth_plugins",
+    "title": "Plugin-based Auth Architecture",
+    "text": "Design plugins for token generation, validation, and refresh supporting JWT, opaque tokens, and mTLS claims. Include phased migration and dual validation during rollout."
+  },
+  {
+    "id": "slo_sla",
+    "title": "SLO/SLA Guardrails",
+    "text": "Track P95 latency and error rate for auth endpoints. Use canary rollouts and automated rollback when thresholds are breached."
+  },
+  {
+    "id": "testing_strategy",
+    "title": "Testing Auth Layers",
+    "text": "Unit tests for token parsing, integration tests for middleware, and end-to-end tests for login flows with synthetic users."
+  },
+  {
+    "id": "soc2_controls",
+    "title": "SOC 2 Controls Mapping",
+    "text": "Security, Availability, Integrity, Confidentiality, Privacy. Emphasize logging, RBAC, backups, and change management."
+  },
+  {
+    "id": "iso27001_isms",
+    "title": "ISO 27001 ISMS Overview",
+    "text": "Risk management, incident response, asset inventory, supplier security, and continuous improvement."
+  },
+  {
+    "id": "hipaa_basics",
+    "title": "HIPAA Basics",
+    "text": "Privacy Rule, Security Rule, and Breach Notification with audit trails for PHI access."
+  },
+  {
+    "id": "sap_s4_cutover",
+    "title": "SAP S/4HANA Cutover Plan",
+    "text": "Freeze changes, code and customizing transports, data migration rehearsal, downtime window, backout plan, post-cutover hypercare."
+  },
+  {
+    "id": "sap_ricefw_tracking",
+    "title": "RICEFW Governance",
+    "text": "Track Reports, Interfaces, Conversions, Enhancements, Forms, and Workflows via change control, test gates, and transport sequencing."
+  },
+  {
+    "id": "sap_authorizations_sod",
+    "title": "SAP Authorizations & SoD",
+    "text": "Design PFCG roles with least privilege, mitigate Segregation of Duties risks, firefighter access, periodic recertification, and audit evidence."
+  },
+  {
+    "id": "sap_idoc_monitoring",
+    "title": "IDoc Monitoring & Retry",
+    "text": "Set up WE02/WE05 dashboards, alerts for stuck IDocs, reprocessing strategy, partner profiles, status management, and error handling patterns."
+  },
+  {
+    "id": "sap_fiori_governance",
+    "title": "Fiori Governance & Performance",
+    "text": "Catalogs/groups, app whitelisting, launchpad performance (cache buster, CDN), OData throttling, and SSO integration."
+  },
+  {
+    "id": "sap_bw_hana_integration",
+    "title": "BW/4HANA & S/4 Integration",
+    "text": "ODP extractors, SLT replication, data reconciliation controls, delta handling, and data lineage for analytics."
+  },
+  {
+    "id": "btp_cap_hardening",
+    "title": "SAP BTP CAP Service Hardening",
+    "text": "CAP multi-tenant security, XSUAA scopes/roles, Destination service, connectivity, rate limits, and circuit breakers; blue-green deploy on Cloud Foundry."
+  },
+  {
+    "id": "btp_event_mesh_reliability",
+    "title": "Event Mesh Reliability",
+    "text": "Event Mesh queues/topics, QoS, dead-letter strategy, retry policy, idempotency keys, and consumer scaling."
+  },
+  {
+    "id": "btp_api_mgmt_governance",
+    "title": "BTP API Management Governance",
+    "text": "Policies: spike arrest, quota, API key/JWT, IP allowlists, masking, audit logging; lifecycle via CTMS."
+  },
+  {
+    "id": "btp_kyma_dr",
+    "title": "Kyma Multi-Region DR",
+    "text": "Kyma clusters across regions, HPA/VPA, backup/restore, traffic failover, and config drift detection."
+  },
+  {
+    "id": "btp_cpi_observability",
+    "title": "CPI Observability",
+    "text": "Integration Suite (CPI) monitoring, traceability, alerting rules, error categories, and retry/backoff."
+  }
+]

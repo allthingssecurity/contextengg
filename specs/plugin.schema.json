@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/context-engine/plugin.schema.json",
+  "title": "Plugin Manifest",
+  "type": "object",
+  "required": ["name", "kind", "entrypoint"],
+  "properties": {
+    "name": {"type": "string"},
+    "version": {"type": "string"},
+    "kind": {"enum": ["writer", "selector", "compressor", "isolator", "optimizer", "llm_adapter"]},
+    "entrypoint": {"type": "string", "description": "Python path or executable"},
+    "capabilities": {"type": "array", "items": {"type": "string"}},
+    "parameters": {"type": "object"},
+    "metadata": {"type": "object"}
+  }
+}
+

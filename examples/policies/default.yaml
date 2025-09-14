@@ -1,0 +1,19 @@
+budgets:
+  max_input_tokens: 4000
+  max_output_tokens: 1000
+  cost_ceiling_usd: 0.10
+  latency_target_ms: 2500
+selection:
+  instruction: {scope: project}
+  fact: {rerank: true}
+  tool: {metadata: ["success_rate"]}
+compression:
+  summarize_when_ratio: 0.9
+  prune_rules: ["remove_repetitions", "strip_logs_older_than_24h"]
+isolation:
+  subagents: []
+  sandbox: {enabled: false}
+optimization:
+  objective: balanced
+  tradeoffs: {quality: 0.4, latency: 0.3, cost: 0.3}
+

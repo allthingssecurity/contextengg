@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/context-engine/policy.schema.json",
+  "title": "Policy",
+  "type": "object",
+  "properties": {
+    "budgets": {
+      "type": "object",
+      "properties": {
+        "max_input_tokens": {"type": "integer"},
+        "max_output_tokens": {"type": "integer"},
+        "cost_ceiling_usd": {"type": "number"},
+        "latency_target_ms": {"type": "integer"}
+      }
+    },
+    "selection": {
+      "type": "object",
+      "properties": {
+        "instruction": {"type": "object"},
+        "fact": {"type": "object"},
+        "tool": {"type": "object"}
+      }
+    },
+    "compression": {
+      "type": "object",
+      "properties": {
+        "summarize_when_ratio": {"type": "number"},
+        "prune_rules": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "properties": {
+        "subagents": {"type": "array", "items": {"type": "string"}},
+        "sandbox": {"type": "object"}
+      }
+    },
+    "optimization": {
+      "type": "object",
+      "properties": {
+        "objective": {"enum": ["quality", "latency", "cost", "balanced"]},
+        "tradeoffs": {"type": "object"}
+      }
+    }
+  }
+}
+

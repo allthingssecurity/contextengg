@@ -1,0 +1,61 @@
+name: code-agent-openai
+description: Code-focused agent using OpenAI adapter
+model:
+  adapter: openai
+  params:
+    model: gpt-4o-mini
+stores:
+  rules:
+    files: ["examples/rules/.rules.md", "examples/rules/style_guide.json"]
+  memory:
+    path: ".cache/memory.jsonl"
+  retrieval:
+    index: "examples/corpus/index.json"
+  tools:
+    registry: "examples/tools/registry.json"
+pipeline:
+  - kind: selector
+    ref: instruction.keyword
+    params:
+      keywords: ["api", "tests", "security", "style"]
+    inject: ["instructions"]
+  - kind: selector
+    ref: fact.embedding
+    params:
+      top_k: 5
+    inject: ["facts"]
+  - kind: selector
+    ref: tool.rag
+    params:
+      top_n: 4
+    inject: ["tools"]
+  - kind: writer
+    ref: scratchpad.file
+    params:
+      path: ".cache/scratchpad.txt"
+  - kind: compressor
+    ref: summarize.decision
+    params:
+      preserve: ["actions", "facts", "open_loops"]
+  - kind: optimizer
+    ref: default
+policies:
+  budgets:
+    max_input_tokens: 6000
+    max_output_tokens: 800
+    cost_ceiling_usd: 1.00
+    latency_target_ms: 5000
+  selection:
+    instruction: {scope: project}
+    fact: {rerank: true}
+    tool: {metadata: ["success_rate", "domain"]}
+  compression:
+    summarize_when_ratio: 0.9
+    prune_rules:
+      - remove: ["redundant", "repetitive", "resolved"]
+  isolation:
+    subagents: ["reviewer"]
+    sandbox: {enabled: true}
+  optimization:
+    objective: balanced
+    tradeoffs: {quality: 0.5, latency: 0.25, cost: 0.25}

@@ -1,0 +1,425 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Context Engineering – Chat Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg:#0f172a; --panel:#111827; --accent:#22c55e; --muted:#94a3b8; --text:#e5e7eb; --pill:#1f2937;
+      }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto; background:var(--bg); color:var(--text); }
+      .header { padding:14px 20px; border-bottom:1px solid #1f2937; display:flex; align-items:center; gap:12px; }
+      .brand { font-weight:600; }
+      .container { display:flex; height: calc(100vh - 56px); }
+      .sidebar { width: 360px; border-right:1px solid #1f2937; padding:12px; overflow:auto; background:var(--panel); }
+      .main { flex:1; display:flex; flex-direction:column; }
+      .toolbar { padding:10px 12px; border-bottom:1px solid #1f2937; display:flex; gap:8px; align-items:center; background:#0b1220; }
+      .tabs { padding:8px 12px; border-bottom:1px solid #1f2937; display:flex; gap:8px; background:#0b1220; }
+      .tab { padding:6px 10px; border:1px solid #1f2937; border-radius:8px; cursor:pointer; background:#111827; color:#cbd5e1; }
+      .tab.active { background:#22c55e; color:#0b1220; border:none; font-weight:600; }
+      input, select, button, textarea { background:#0b1220; color:var(--text); border:1px solid #1f2937; border-radius:8px; padding:8px 10px; }
+      button { background:#111827; cursor:pointer; }
+      button.primary { background: var(--accent); color:#0b1220; border: none; font-weight:600; }
+      .chat { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+      .msg { padding:12px 14px; border-radius:10px; max-width: 70%; }
+      .user { align-self:flex-end; background:#1e293b; }
+      .bot { align-self:flex-start; background:#0d1b2a; border:1px solid #1f2937; }
+      .composer { display:flex; gap:8px; padding:12px; border-top:1px solid #1f2937; }
+      .pill { display:inline-block; background:var(--pill); color:var(--muted); font-size:12px; padding:4px 8px; border-radius: 999px; margin-right:6px; }
+      .step { margin-bottom:10px; padding:10px; border:1px solid #1f2937; border-radius:8px; background:#0b1220; }
+      .step h4 { margin:0 0 6px 0; font-size:13px; color:var(--muted); }
+      .small { color:var(--muted); font-size:12px; }
+      .row { display:flex; gap:8px; align-items:center; }
+      .two { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+      .badge { background:#0f766e; padding:2px 6px; border-radius:6px; font-size:11px; margin-left:6px; }
+      .block { background:#0b1220; border:1px solid #1f2937; border-radius:8px; padding:10px; margin-top:10px; }
+      .chip { display:inline-block; padding:2px 6px; border-radius:6px; font-size:11px; margin-right:6px; }
+      .chip.inst { background:#1f2937; color:#93c5fd; }
+      .chip.fact { background:#1f2937; color:#86efac; }
+      .chip.rule { background:#1f2937; color:#fcd34d; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:12px; white-space:pre-wrap; }
+    </style>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <div class="header">
+      <div class="brand">Context Engineering — Chat Demo</div>
+      <span class="small">Write • Select • Compress • Isolate • Optimize</span>
+    </div>
+    <div class="container">
+      <div class="sidebar" id="ctx"></div>
+      <div class="main" id="app"></div>
+    </div>
+    <script type="text/javascript">
+      const e = React.createElement;
+
+      function useState(init){return React.useState(init)}
+      // ---- Heuristic scoring (client-side) ----
+      function tok(s){ return (s||'').match(/[A-Za-z][A-Za-z0-9_-]+/g)||[] }
+      function kw(s,limit=30){ const sw = new Set('the a an and or of to for in on with by as is are be this that those these from into over under at it its their our your you we they'.split(' ')); const arr = tok(s.toLowerCase()).filter(t=> !sw.has(t) && t.length>3); const freq={}; arr.forEach(t=> freq[t]=(freq[t]||0)+1); return new Set(Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,limit).map(x=>x[0])); }
+      function score(output, selected, query){
+        const want=['objectives','phases','risks','mitigations','evidence','sla','slas','next steps'];
+        const low=(output||'').toLowerCase();
+        const sectionHits = want.reduce((n,w)=> n + (low.includes(w)?1:0), 0);
+        const sectionCov = sectionHits / 7;
+        const lines = (output||'').split('\n').map(x=>x.trim());
+        const bullets = lines.filter(ln=> ln.startsWith('- ')||ln.startsWith('* ')||/^\d+\./.test(ln)).length;
+        const verbs=['implement','define','configure','deploy','monitor','test','mitigate','schedule','assign','review','measure','gate','integrate','alert','trace'];
+        const verbHits = lines.reduce((n,ln)=> n + verbs.reduce((m,v)=> m + (ln.toLowerCase().includes(' '+v+' ')||ln.toLowerCase().startsWith(v)?1:0),0),0);
+        const actionability = Math.min(1.0, bullets*0.02 + verbHits*0.02);
+        const outKW = kw(output||'');
+        let overlap=0.0;
+        if(query){ const qkw=kw(query||''); overlap = Math.max(overlap, (Array.from(qkw).filter(x=> outKW.has(x)).length)/Math.max(1,qkw.size)); }
+        if(selected){ const ref = (selected.instructions||[]).join('\n')+'\n'+(selected.facts||[]).join('\n'); const rkw=kw(ref); overlap = Math.max(overlap, (Array.from(rkw).filter(x=> outKW.has(x)).length)/Math.max(1,rkw.size)); }
+        const approxTokens = Math.max(1, (output||'').length/4);
+        const conciseness = approxTokens<=800?1.0:Math.max(0.0, 1.0 - (approxTokens-800)/800);
+        const composite = Math.round((0.35*sectionCov + 0.35*actionability + 0.2*overlap + 0.1*conciseness)*1000)/1000;
+        return {sectionCov:round3(sectionCov), actionability:round3(actionability), relevance:round3(overlap), conciseness:round3(conciseness), composite};
+      }
+      function round3(x){ return Math.round(x*1000)/1000 }
+      const API = {
+        run: async ({query, adapter, compare, prior_state, api_key}) => {
+          const res = await fetch('/api/run', {
+            method:'POST', headers:{'Content-Type':'application/json', ...(api_key?{'x-openai-key':api_key}:{})},
+            body: JSON.stringify({query, adapter, compare, prior_state, api_key: api_key||null})
+          });
+          return res.json();
+        },
+        examples: async () => (await fetch('/api/examples')).json(),
+      };
+
+      function Pill({label}){return e('span',{className:'pill'},label)}
+
+      function ContextPanel({trace, selected, usage, model, scores, baseScores, prompt}){
+        const steps = [];
+        let injected = {instructions:(selected?.instructions||[]).length, facts:(selected?.facts||[]).length, tools:(selected?.tools||[]).length};
+        let rankings = {facts:[], tools:[]};
+        trace.forEach(t=>{
+          let title = '';
+          if(t.phase==='write') title = 'Write: ' + (t.component||'scratchpad');
+          else if(t.phase==='select') title = 'Select: ' + t.component;
+          else if(t.phase==='compress') title = 'Compress: ' + t.component;
+          else if(t.phase==='optimize') title = 'Optimize';
+          else if(t.phase==='generate') title = 'Generate';
+          else title = t.phase;
+          steps.push(e('div',{className:'step', key: Math.random()},[
+            e('h4',{}, title, t.phase==='optimize'?e('span',{className:'badge'},'decision'):null),
+            t.phase==='select' && e('div',{}, [
+              e('div',{className:'small'}, `+instructions=${(t.added?.instructions||[]).length} +facts=${(t.added?.facts||[]).length} +tools=${(t.added?.tools||[]).length}`)
+            ]),
+            t.phase==='optimize' && e('div',{className:'small'}, `summarize=${String(t.decision?.should_summarize)} remaining_input=${t.decision?.remaining_input_budget}`),
+            t.phase==='compress' && e('div',{className:'small'}, 'Applied summarization/normalization'),
+            (t.explain?.ranking && t.component?.startsWith('fact')) && e('div',{className:'small'}, [e('div',{},'Top facts:'), ...(t.explain.ranking||[]).slice(0,3).map((r,i)=> e('div',{key:i}, `${r.title||r.id||''} (score=${r.score})`))]),
+            (t.explain?.ranking && t.component==='tool.rag') && e('div',{className:'small'}, [e('div',{},'Top tools:'), ...(t.explain.ranking||[]).slice(0,3).map((r,i)=> e('div',{key:i}, `${r.name} (score=${r.score})`))]),
+          ]))
+          if(t.explain?.ranking){
+            if(t.component==='tool.rag'){ rankings.tools = t.explain.ranking }
+            if(String(t.component||'').startsWith('fact')){ rankings.facts = t.explain.ranking }
+          }
+        })
+        return e(React.Fragment,{},[
+          e('div', {className:'row', style:{marginBottom:8}}, [
+            Pill({label: model?.name||'model'}), Pill({label: `in=${usage?.input_tokens||'-'}`}), Pill({label:`out=${usage?.output_tokens||'-'}`})
+          ]),
+          e('div',{}, e('strong',{},'Pipeline')), ...steps,
+          e('div',{style:{marginTop:12}}, e('strong',{},'Selected Context')),
+          e('div',{className:'small'}, 'Instructions'),
+          e('div',{className:'small'}, (selected?.instructions||[]).slice(0,2).map((s,i)=> e('div',{key:i}, s))),
+          e('div',{className:'small', style:{marginTop:6}}, 'Facts'),
+          e('div',{className:'small'}, (selected?.facts||[]).slice(0,3).map((s,i)=> e('div',{key:i}, s))),
+          e('div',{className:'small', style:{marginTop:6}}, 'Tools'),
+          e('div',{className:'small'}, (selected?.tools||[]).join(', ')),
+          e('div',{style:{marginTop:12}}, e('strong',{},'Why this context?')),
+          e('div',{className:'small'}, `Injected → instructions=${injected.instructions}, facts=${injected.facts}, tools=${injected.tools}`),
+          rankings.facts.length? e('div',{className:'small'}, `Facts ranked by query/context relevance`) : null,
+          rankings.tools.length? e('div',{className:'small'}, `Tools ranked by semantics+success rate`) : null,
+          (scores||baseScores) && e('div',{style:{marginTop:12}}, e('strong',{},'Quality Scores')),
+          (scores||baseScores) && e('div',{className:'row'}, [
+            baseScores? Pill({label:`Sections base=${baseScores.sectionCov}`}): null,
+            scores? Pill({label:`Sections eng=${scores.sectionCov}`}): null,
+            baseScores? Pill({label:`Action base=${baseScores.actionability}`}): null,
+            scores? Pill({label:`Action eng=${scores.actionability}`}): null,
+            baseScores? Pill({label:`Rel base=${baseScores.relevance}`}): null,
+            scores? Pill({label:`Rel eng=${scores.relevance}`}): null,
+            baseScores? Pill({label:`Comp base=${baseScores.composite}`}): null,
+            scores? Pill({label:`Comp eng=${scores.composite}`}): null,
+          ]),
+          prompt? e('div',{className:'block'}, [
+            e('div',{}, e('strong',{},'Prompt Composition')),
+            e('div',{style:{marginTop:6}}, [
+              e('span',{className:'chip rule'}, 'System Preamble'),
+              e('div',{className:'mono'}, (prompt.system||'').split('\n\n')[0]||'')
+            ]),
+            (prompt.sources?.instructions?.length? e('div',{style:{marginTop:6}}, [
+              e('span',{className:'chip inst'}, 'House Rules (from instructions)'),
+              e('div',{className:'mono'}, (prompt.sources.instructions||[]).slice(0,2).join('\n\n')),
+              (prompt.sources_meta?.instructions_sources?.length? e('div',{className:'small'}, 'Sources: ' + (prompt.sources_meta.instructions_sources||[]).join(', ')) : null)
+            ]): null),
+            (prompt.sources?.facts?.length? e('div',{style:{marginTop:6}}, [
+              e('span',{className:'chip fact'}, 'Reference Notes (from facts)'),
+              e('div',{className:'mono'}, (prompt.sources.facts||[]).slice(0,3).join('\n\n')),
+              (prompt.sources_meta?.facts_sources?.length? e('div',{className:'small'}, 'KB Sources: ' + (prompt.sources_meta.facts_sources||[]).slice(0,3).map(r=> (r.title||r.id||'')).join('; ')) : null)
+            ]): null),
+            e('div',{style:{marginTop:6}}, [
+              e('span',{className:'chip rule'}, 'Output Requirements'),
+              e('div',{className:'mono'}, ((prompt.system||'').match(/Output Requirements:[\s\S]*/)||[''])[0])
+            ]),
+            e('div',{style:{marginTop:8}}, [
+              e('span',{className:'chip'}, 'User Query'),
+              e('div',{className:'mono'}, prompt.user||'')
+            ]),
+            (prompt.sources_meta?.tools_sources?.length? e('div',{className:'block'}, [
+              e('div',{}, e('span',{className:'chip'}, 'Tools Routed')),
+              e('div',{className:'small'}, (prompt.sources_meta.tools_sources||[]).slice(0,4).map(r=> (r.name||'')).join(', '))
+            ]) : null)
+          ]): null
+        ])
+      }
+
+      function ChatApp(){
+        const [messages,setMessages] = useState([]);
+        const [query,setQuery] = useState('');
+        const [adapter,setAdapter] = useState('openai');
+        const [compare,setCompare] = useState(true);
+        const [key,setKey] = useState('');
+        const [state,setState] = useState(null);
+        const [trace,setTrace] = useState([]);
+        const [selected,setSelected] = useState({});
+        const [usage,setUsage] = useState({});
+        const [model,setModel] = useState({});
+        const [baseline,setBaseline] = useState(null);
+        const [engScores,setEngScores] = useState(null);
+        const [baseScores,setBaseScores] = useState(null);
+        const [scenarios,setScenarios] = useState({});
+        const [prompt,setPrompt] = useState(null);
+        const [effQuery,setEffQuery] = useState('');
+        const [stream,setStream] = useState(true);
+        const [activeTab,setActiveTab] = useState('prompt');
+        React.useEffect(()=>{API.examples().then(d=> setScenarios(d.scenarios||{}))},[])
+
+        async function send(){
+          if(!query.trim()) return;
+          const user = {role:'user', text: query};
+          setMessages(m=>[...m,user]);
+          if(stream){
+            // streaming mode
+            const res = await fetch('/api/run_stream', {method:'POST', headers:{'Content-Type':'application/json', ...(key?{'x-openai-key':key}:{})}, body: JSON.stringify({query, adapter, compare, prior_state: state, api_key:key||null})});
+            const reader = res.body.getReader();
+            let decoder = new TextDecoder();
+            let buf='';
+            let botIndex = null;
+            function appendBot(text){
+              setMessages(m=>{
+                const copy=[...m];
+                if(botIndex===null){ botIndex = copy.length; copy.push({role:'bot', text}); }
+                else { copy[botIndex] = {...copy[botIndex], text: (copy[botIndex].text||'') + text}; }
+                return copy;
+              });
+            }
+            while(true){
+              const {value, done} = await reader.read();
+              if(done) break;
+              buf += decoder.decode(value, {stream:true});
+              let idx;
+              while((idx = buf.indexOf('\n')) >= 0){
+                const line = buf.slice(0, idx); buf = buf.slice(idx+1);
+                if(!line.trim()) continue;
+                try{
+                  const evt = JSON.parse(line);
+                  if(evt.type==='meta'){
+                    const eng = evt.engineered||{};
+                    setState(eng.state||null);
+                    setTrace(eng.trace||[]);
+                    setSelected((eng.state||{}).selected||{});
+                    setUsage(eng.usage||{});
+                    setModel(eng.model||{});
+                    setPrompt(eng.prompt||null);
+                    setEffQuery(eng.effective_query||'');
+                  } else if(evt.type==='delta'){
+                    appendBot(evt.text||'');
+                  } else if(evt.type==='done'){
+                    setBaseline(evt.baseline||null);
+                    const last = messages.filter(m=>m.role==='bot').slice(-1)[0];
+                    const engOut = (last?.text)||'';
+                    const eq = (state?.effective_query)||'';
+                    setEngScores(score(engOut, selected, eq));
+                    setBaseScores(evt.baseline? score(evt.baseline.output||'', null, eq): null);
+                  }
+                }catch(err){/* ignore parse errors */}
+              }
+            }
+            setQuery('');
+          } else {
+            const r = await API.run({query, adapter, compare, prior_state: state, api_key:key});
+            const eng = r.engineered || {};
+            setState(eng.state||null);
+            setTrace(eng.trace||[]);
+            setSelected((eng.state||{}).selected||{});
+            setUsage(eng.usage||{});
+            setModel(eng.model||{});
+            setPrompt(eng.prompt||null);
+            setEffQuery(eng.effective_query||'');
+            setBaseline(r.baseline||null);
+            const bot = {role:'bot', text: (eng.output||'')};
+            setMessages(m=>[...m, bot]);
+            try{
+              const eq = (eng.effective_query)||'';
+              const engSc = score(eng.output||'', (eng.state||{}).selected||{}, eq);
+              const baseSc = r.baseline? score(r.baseline.output||'', null, eq) : null;
+              setEngScores(engSc); setBaseScores(baseSc);
+            }catch(err){}
+            setQuery('');
+          }
+        }
+
+        return e(React.Fragment,{},[
+          e('div',{className:'toolbar'},[
+            e('select',{value:adapter, onChange:ev=> setAdapter(ev.target.value)},[
+              e('option',{value:'openai'},'openai'), e('option',{value:'local-echo'},'local-echo')
+            ]),
+            e('input',{placeholder:'OpenAI API Key (optional)', value:key, onChange:ev=> setKey(ev.target.value), style:{flex:1}}),
+            e('label',{className:'small'}, [ e('input',{type:'checkbox', checked:compare, onChange:ev=> setCompare(ev.target.checked)}), ' Compare baseline' ]),
+            e('label',{className:'small'}, [ e('input',{type:'checkbox', checked:stream, onChange:ev=> setStream(ev.target.checked)}), ' Stream output' ])
+          ]),
+          e('div',{className:'tabs'},[
+            e('div',{className:'tab ' + (activeTab==='prompt'?'active':''), onClick:()=> setActiveTab('prompt')}, 'Prompt'),
+            e('div',{className:'tab ' + (activeTab==='outputs'?'active':''), onClick:()=> setActiveTab('outputs')}, 'Outputs'),
+            e('div',{className:'tab ' + (activeTab==='scores'?'active':''), onClick:()=> setActiveTab('scores')}, 'Scores')
+          ]),
+          activeTab==='prompt' && e('div',{className:'chat'}, [
+            e('div',{className:'msg bot'}, [
+              e('div',{}, e('strong',{},'Engineered Prompt')), 
+              prompt? e('div',{}, [
+                e('div',{className:'block'}, [
+                  e('div',{}, [e('span',{className:'chip rule'},'System Preamble')]),
+                  e('div',{className:'mono'}, (prompt.system||'').split('\n\n')[0]||'')
+                ]),
+                (prompt.sources?.instructions?.length? e('div',{className:'block'}, [
+                  e('div',{}, [e('span',{className:'chip inst'},'House Rules (instructions)')]),
+                  e('div',{className:'mono'}, (prompt.sources.instructions||[]).slice(0,2).join('\n\n'))
+                ]): null),
+            (prompt.sources?.facts?.length? e('div',{className:'block'}, [
+              e('div',{}, [e('span',{className:'chip fact'},'Reference Notes (facts)')]),
+              e('div',{}, (prompt.facts_attribution||[]).slice(0,5).map((fa,i)=> e('div',{key:i}, [
+                e('span',{className:'chip fact'}, fa.tool?`tool:${fa.tool}`:'kb'),
+                fa.kb? e('span',{className:'chip'}, fa.kb): null,
+                e('div',{className:'mono'}, fa.text||'')
+              ])))
+            ]): null),
+                e('div',{className:'block'}, [
+                  e('div',{}, [e('span',{className:'chip rule'},'Output Requirements')]),
+                  e('div',{className:'mono'}, ((prompt.system||'').match(/Output Requirements:[\s\S]*/)||[''])[0])
+                ]),
+                e('div',{className:'block'}, [
+                  e('div',{}, [e('span',{className:'chip'},'User Query')]),
+                  e('div',{className:'mono'}, prompt.user||'')
+                ])
+              ]): e('div',{}, 'Run a query to see the prompt')
+            ])
+          ]),
+          activeTab==='outputs' && e('div',{className:'chat'}, [
+            e('div',{className:'two'},[
+              e('div',{},[
+                e('div',{className:'small'},'Baseline (no context engineering)'),
+                e('div',{className:'msg bot', dangerouslySetInnerHTML:{__html: (window.marked? window.marked.parse((baseline&&baseline.output)||'') : ((baseline&&baseline.output)||'')) }})
+              ]),
+              e('div',{},[
+                e('div',{className:'small'},'Context‑Engineered'),
+                (function(){ const last=messages.filter(m=>m.role==='bot').slice(-1)[0]; const html = window.marked? window.marked.parse(last?.text||'') : (last?.text||''); return e('div',{className:'msg bot', dangerouslySetInnerHTML:{__html:html}})})()
+              ])
+            ])
+          ]),
+          activeTab==='scores' && e('div',{className:'chat'}, [
+            (function(){
+              const base = baseScores || (baseline? score(baseline.output||'', null, effQuery): null);
+              const eng = engScores || (messages.filter(m=>m.role==='bot').length? score(messages.filter(m=>m.role==='bot').slice(-1)[0].text||'', selected, effQuery): null);
+              if(!base && !eng) return e('div',{className:'msg bot'}, 'Run a query to score outputs');
+              const colBlock = (heading, s) => e('div',{}, [
+                e('div',{}, e('strong',{}, heading)),
+                e('div',{className:'block'}, [
+                  e('div',{}, 'Sections'), e('div',{className:'pill'}, String((s.sectionCov??0).toFixed(3))),
+                  e('div',{style:{height:'6px'}}),
+                  e('div',{}, 'Actionable'), e('div',{className:'pill'}, String((s.actionability??0).toFixed(3))),
+                  e('div',{style:{height:'6px'}}),
+                  e('div',{}, 'Relevant'), e('div',{className:'pill'}, String((s.relevance??0).toFixed(3))),
+                  e('div',{style:{height:'6px'}}),
+                  e('div',{}, 'Concise'), e('div',{className:'pill'}, String((s.conciseness??0).toFixed(3))),
+                  e('div',{style:{height:'6px'}}),
+                  e('div',{}, 'Composite'), e('div',{className:'pill'}, String((s.composite??0).toFixed(3))),
+                ])
+              ]);
+              const delta = (a,b) => ((a??0)-(b??0)).toFixed(3);
+              return e('div',{className:'two'}, [
+                colBlock('Baseline (No Context Engineering)', base||{}),
+                colBlock('Context‑Engineered', eng||{}),
+              ].concat([
+                e('div',{className:'row', style:{gridColumn:'1 / span 2', gap:'12px', marginTop:'8px'}},[
+                  e('div',{className:'pill'}, `Δ Sections=${delta(eng?.sectionCov, base?.sectionCov)}`),
+                  e('div',{className:'pill'}, `Δ Actionable=${delta(eng?.actionability, base?.actionability)}`),
+                  e('div',{className:'pill'}, `Δ Relevant=${delta(eng?.relevance, base?.relevance)}`),
+                  e('div',{className:'pill'}, `Δ Concise=${delta(eng?.conciseness, base?.conciseness)}`),
+                  e('div',{className:'pill'}, `Δ Composite=${delta(eng?.composite, base?.composite)}`),
+                ]),
+                e('div',{className:'small', style:{gridColumn:'1 / span 2'}}, 'Heuristics: sections={Objectives, Phases, Risks/Mitigations, Evidence/SLAs, Next Steps}; actionability=bullets + verbs; relevance=overlap with selected context or query; conciseness=<=800 tokens.')
+              ]))
+            })()
+          ]),
+          e('div',{className:'composer'},[
+            e('select',{onChange:ev=> setQuery(scenarios[ev.target.value]||''), defaultValue:''}, [ e('option',{value:''},'Choose scenario…'), ...Object.keys(scenarios).map(k=> e('option',{key:k, value:k},k)) ]),
+            e('textarea',{placeholder:'Type message...', value:query, onChange:ev=> setQuery(ev.target.value), style:{flex:1, height:48}}),
+            e('button',{className:'primary', onClick:send},'Send')
+          ]),
+          ReactDOM.createPortal(e(ContextPanel,{trace, selected, usage, model, scores:engScores, baseScores:baseScores, prompt}), document.getElementById('ctx')),
+          (activeTab==='outputs' && baseline) ? e('div',{className:'two', style:{padding:'0 12px 12px'}},[
+            e('div',{},[
+              e('div',{className:'small'},'Baseline (no context engineering)'),
+              e('div',{className:'msg bot', dangerouslySetInnerHTML:{__html: (window.marked? window.marked.parse(baseline.output||'') : (baseline.output||'')) }})
+            ]),
+            e('div',{},[
+              e('div',{className:'small'},'Context‑Engineered'),
+              e('div',{className:'msg bot', dangerouslySetInnerHTML:{__html: (window.marked? window.marked.parse(messages.filter(m=>m.role==='bot').slice(-1)[0]?.text||'') : (messages.filter(m=>m.role==='bot').slice(-1)[0]?.text||'')) }})
+            ])
+          ]) : null,
+          (activeTab==='scores' && baseline && messages.filter(m=>m.role==='bot').length>0) ? (function(){
+            const engOut = messages.filter(m=>m.role==='bot').slice(-1)[0]?.text||'';
+            const engScoresLoc = score(engOut, selected, (state?.effective_query)||'');
+            const baseScoresLoc = score(baseline.output||'', null, (state?.effective_query)||'');
+            return e('div',{style:{padding:'6px 12px 16px'}},[
+              e('div',{className:'row'},[
+                e('div',{className:'pill'},`Sections base=${baseScoresLoc.sectionCov}`),
+                e('div',{className:'pill'},`Sections eng=${engScoresLoc.sectionCov}`),
+                e('div',{className:'pill'},`Action base=${baseScoresLoc.actionability}`),
+                e('div',{className:'pill'},`Action eng=${engScoresLoc.actionability}`),
+                e('div',{className:'pill'},`Rel base=${baseScoresLoc.relevance}`),
+                e('div',{className:'pill'},`Rel eng=${engScoresLoc.relevance}`),
+                e('div',{className:'pill'},`Comp base=${baseScoresLoc.composite}`),
+                e('div',{className:'pill'},`Comp eng=${engScoresLoc.composite}`),
+              ])
+            ])
+          })() : null
+        ])
+      }
+
+      ReactDOM.createRoot(document.getElementById('app')).render(e(ChatApp))
+    </script>
+  </body>
+  <script>
+    window.addEventListener('error', function(e){
+      var app = document.getElementById('app');
+      if(app && !app.innerText){ app.innerText = 'Client error: ' + (e && e.message ? e.message : 'Unknown'); }
+    });
+    try{
+      // noop
+    }catch(err){
+      var app = document.getElementById('app');
+      if(app){ app.innerText = 'Init error: ' + (err && err.message ? err.message : err); }
+    }
+  </script>
+  </html>

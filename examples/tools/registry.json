@@ -1,0 +1,14 @@
+{
+  "tools": [
+    {"name": "grep", "description": "search text in files", "success_rate": 0.92, "domain": "code"},
+    {"name": "ast_parser", "description": "parse code into AST", "success_rate": 0.85, "domain": "code"},
+    {"name": "http_get", "description": "fetch HTTP resource", "success_rate": 0.88, "domain": "web"},
+    {"name": "btp_deploy", "description": "deploy artifact to BTP CF/CTMS", "success_rate": 0.9, "domain": "sap_btp"},
+    {"name": "btp_logs", "description": "fetch BTP logs for app/space", "success_rate": 0.86, "domain": "sap_btp"},
+    {"name": "event_mesh_check", "description": "inspect Event Mesh queues and DLQ", "success_rate": 0.84, "domain": "sap_btp"},
+    {"name": "xsuaa_token", "description": "obtain XSUAA token for service calls", "success_rate": 0.88, "domain": "sap_btp"},
+    {"name": "destinations_list", "description": "list configured destinations", "success_rate": 0.9, "domain": "sap_btp"},
+    {"name": "ctms_transport", "description": "promote artifacts via Cloud Transport Management", "success_rate": 0.87, "domain": "sap_btp"},
+    {"name": "cpi_monitor", "description": "monitor SAP Integration Suite (CPI)", "success_rate": 0.83, "domain": "sap_btp"}
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/context-engine/agent.schema.json",
+  "title": "Agent Config",
+  "type": "object",
+  "required": ["name", "model", "pipeline", "policies"],
+  "properties": {
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "model": {
+      "type": "object",
+      "required": ["adapter", "params"],
+      "properties": {
+        "adapter": {"type": "string"},
+        "params": {"type": "object"}
+      }
+    },
+    "stores": {
+      "type": "object",
+      "properties": {
+        "rules": {"type": "object"},
+        "memory": {"type": "object"},
+        "retrieval": {"type": "object"},
+        "tools": {"type": "object"}
+      }
+    },
+    "pipeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": {"enum": ["writer", "selector", "compressor", "isolator", "optimizer"]},
+          "ref": {"type": "string"},
+          "params": {"type": "object"},
+          "inject": {"type": "array", "items": {"type": "string"}},
+          "outputs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "policies": {
+      "$ref": "policy.schema.json"
+    }
+  }
+}
+

@@ -1,0 +1,11 @@
+{
+  "responses": {
+    "tone": "concise, direct, friendly",
+    "format": "bulleted when helpful"
+  },
+  "code": {
+    "naming": "descriptive",
+    "comments": "minimal, purposeful"
+  }
+}
+

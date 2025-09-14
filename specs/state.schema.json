@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/context-engine/state.schema.json",
+  "title": "Runtime State",
+  "type": "object",
+  "properties": {
+    "plan": {"type": "string"},
+    "memory_refs": {"type": "array", "items": {"type": "string"}},
+    "scratchpad_ref": {"type": "string"},
+    "tool_history": {"type": "array", "items": {"type": "object"}},
+    "output_draft": {"type": "string"},
+    "selected": {
+      "type": "object",
+      "properties": {
+        "instructions": {"type": "array", "items": {"type": "string"}},
+        "facts": {"type": "array", "items": {"type": "string"}},
+        "tools": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "properties": {
+        "input_tokens": {"type": "integer"},
+        "output_tokens": {"type": "integer"},
+        "cost_usd": {"type": "number"},
+        "latency_ms": {"type": "integer"}
+      }
+    },
+    "logs": {"type": "array", "items": {"type": "string"}}
+  }
+}
+

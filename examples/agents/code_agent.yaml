@@ -1,0 +1,61 @@
+name: code-agent
+description: Code-focused agent with selective tools and aggressive pruning
+model:
+  adapter: local-echo
+  params:
+    context_window: 16000
+stores:
+  rules:
+    files: ["examples/rules/.rules.md", "examples/rules/style_guide.json"]
+  memory:
+    path: ".cache/memory.jsonl"
+  retrieval:
+    index: "examples/corpus/index.json"
+  tools:
+    registry: "examples/tools/registry.json"
+pipeline:
+  - kind: selector
+    ref: instruction.keyword
+    params:
+      keywords: ["api", "tests", "security", "style"]
+    inject: ["instructions"]
+  - kind: selector
+    ref: fact.keyword
+    params:
+      top_k: 5
+    inject: ["facts"]
+  - kind: selector
+    ref: tool.rag
+    params:
+      top_n: 4
+    inject: ["tools"]
+  - kind: writer
+    ref: scratchpad.file
+    params:
+      path: ".cache/scratchpad.txt"
+  - kind: compressor
+    ref: summarize.decision
+    params:
+      preserve: ["actions", "facts", "open_loops"]
+  - kind: optimizer
+    ref: default
+policies:
+  budgets:
+    max_input_tokens: 6000
+    max_output_tokens: 1500
+    cost_ceiling_usd: 0.50
+    latency_target_ms: 3000
+  selection:
+    instruction: {scope: project}
+    fact: {rerank: true}
+    tool: {metadata: ["success_rate", "domain"]}
+  compression:
+    summarize_when_ratio: 0.95
+    prune_rules:
+      - remove: ["redundant", "repetitive", "resolved"]
+  isolation:
+    subagents: ["reviewer"]
+    sandbox: {enabled: true}
+  optimization:
+    objective: balanced
+    tradeoffs: {quality: 0.5, latency: 0.25, cost: 0.25}
