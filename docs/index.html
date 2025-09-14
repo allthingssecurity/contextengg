@@ -45,6 +45,32 @@
       </div>
     </div>
     <script>
+      // Embedded demo data fallback (avoids fetch issues on Pages)
+      window.__DEMO__ = {
+        scenarios: {
+          "CPI Observability": "Implement SAP Integration Suite (CPI) observability: monitoring dashboards, tracing, alerting rules, error categories, and retry/backoff.",
+          "Event Mesh Reliability": "Design Event Mesh reliability: queues/topics, QoS, DLQ strategy, retry/backoff, idempotency keys, and consumer autoscaling. Include monitoring, alerts, and runbook.",
+          "Kyma Multi-Region DR": "Create a Kyma multi-region DR plan: active/active or active/passive, HPA/VPA, backup/restore cadence, traffic failover, and config drift detection.",
+          "BTP API Management Governance": "Establish BTP API Management governance: spike arrest, quota, API key/JWT policy, IP allowlists, masking, audit logging; lifecycle via CTMS."
+        },
+        kb: [
+          {id:"cpi_obs", title:"CPI Observability", text:"Integration Suite (CPI) monitoring, traceability, alerting rules, error categories, and retry/backoff."},
+          {id:"event_mesh", title:"Event Mesh Reliability", text:"Event Mesh queues/topics, QoS, dead-letter strategy, retry policy, idempotency keys, and consumer scaling."},
+          {id:"kyma_dr", title:"Kyma DR", text:"Kyma clusters across regions, HPA/VPA, backup/restore, traffic failover, and config drift detection."},
+          {id:"api_mgmt", title:"API Management Governance", text:"Policies: spike arrest, quota, API key/JWT, IP allowlists, masking, audit logging; lifecycle via CTMS."}
+        ],
+        rules: [
+          "# Project Rules\n\n- Prefer clear, concise documentation.\n- Enforce consistent error handling.\n- Provide tests for critical paths.\n- Avoid unnecessary complexity."
+        ],
+        tools: [
+          {name:"event_mesh_check", description:"inspect Event Mesh queues and DLQ", success:0.84},
+          {name:"cpi_monitor", description:"monitor SAP Integration Suite (CPI)", success:0.83},
+          {name:"kyma_ctl", description:"query Kyma cluster state", success:0.81},
+          {name:"ctms_transport", description:"promote via Cloud Transport Management", success:0.87}
+        ]
+      };
+    </script>
+    <script>
       let DATA = null;
       const state = { scenario:null, query:'', active:'prompt', trace:[], selected:{instructions:[], facts:[], tools:[]}, prompt:null, outputs:{engineered:'', baseline:''}, scores:null };
       const STOP = new Set('the a an and or of to for in on with by as is are be this that those these from into over under at it its their our your you we they'.split(' '));
@@ -181,7 +207,12 @@
       function opt(v,l){ const o=document.createElement('option'); o.value=v; o.textContent=l; return o }
       function className(n){ return n }
 
-      fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() }).catch(_=> { document.getElementById('content').innerHTML = '<div class="block">Failed to load demo data.</div>' })
+      (function init(){
+        try {
+          if (window.__DEMO__) { DATA = window.__DEMO__; render(); return; }
+        } catch (e) {}
+        fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() }).catch(_=> { DATA = null; document.getElementById('content').innerHTML = '<div class="block">Failed to load demo data.</div>' })
+      })();
     </script>
   </body>
   </html>
