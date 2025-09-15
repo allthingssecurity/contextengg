@@ -167,7 +167,19 @@
 
       function run(){ engineeredPrompt(state.query); generateOutputs(); render() }
 
-      function h(tag, cls){ const el=document.createElement(tag); if(cls) el.className=cls; return el }
+      function h(tag, attrs){
+        const el=document.createElement(tag);
+        if (typeof attrs === 'string') {
+          el.className = attrs;
+        } else if (attrs && typeof attrs === 'object') {
+          for (const [k,v] of Object.entries(attrs)) {
+            if (k === 'class' || k === 'className') el.className = v;
+            else if (k === 'style' && typeof v === 'string') el.setAttribute('style', v);
+            else el.setAttribute(k, v);
+          }
+        }
+        return el;
+      }
       function block(title, ...children){ const b=h('div','block'); if(title) b.appendChild(div(str(title))); children.forEach(c=> b.appendChild(c)); return b }
       function row(...children){ const r=h('div','row'); children.forEach(c=> r.appendChild(c)); return r }
       function pill(text){ const p=h('span','pill'); p.textContent=text; return p }
@@ -182,4 +194,3 @@
     </script>
   </body>
   </html>
-
