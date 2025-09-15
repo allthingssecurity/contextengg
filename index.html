@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Context Engineering — Simulated Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+      :root { --bg:#0f172a; --panel:#111827; --accent:#22c55e; --text:#e5e7eb; --muted:#94a3b8; --line:#1f2937; }
+      * { box-sizing: border-box }
+      body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto; background:var(--bg); color:var(--text) }
+      .header { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center }
+      .brand { font-weight:600 }
+      .layout { display:grid; grid-template-columns: 360px 1fr; height: calc(100vh - 54px) }
+      .side { background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:12px }
+      .main { display:flex; flex-direction:column }
+      .toolbar { padding:10px 12px; border-bottom:1px solid var(--line); display:flex; gap:8px }
+      .tabs { padding:8px 12px; border-bottom:1px solid var(--line); display:flex; gap:8px; background:#0b1220 }
+      .tab { padding:6px 10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; background:#111827; color:#cbd5e1 }
+      .tab.active { background:var(--accent); color:#0b1220; border:none; font-weight:600 }
+      input, select, button, textarea { background:#0b1220; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px }
+      button { background:#111827; cursor:pointer }
+      button.primary { background: var(--accent); color:#0b1220; border:none; font-weight:600 }
+      .content { padding:14px; overflow:auto; display:flex; flex-direction:column; gap:12px }
+      .block { background:#0b1220; border:1px solid var(--line); border-radius:8px; padding:10px }
+      .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+      .pill { background:#1f2937; color:#cbd5e1; border-radius:999px; padding:2px 8px; font-size:12px }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:12px; white-space:pre-wrap }
+      .two { display:grid; grid-template-columns: 1fr 1fr; gap:10px }
+      .chip { display:inline-block; padding:2px 6px; border-radius:6px; font-size:11px; margin-right:6px }
+      .chip.inst { background:#1f2937; color:#93c5fd }
+      .chip.fact { background:#1f2937; color:#86efac }
+      .chip.tool { background:#1f2937; color:#fcd34d }
+      .small { color:var(--muted); font-size:12px }
+    </style>
+  </head>
+  <body>
+    <div class="header"><div class="brand">Context Engineering — Simulated Demo</div><div class="small">Write • Select • Compress • Isolate • Optimize</div></div>
+    <div class="layout">
+      <div class="side" id="ctx"></div>
+      <div class="main">
+        <div class="toolbar" id="tools"></div>
+        <div class="tabs"><div class="tab active" id="tp">Prompt</div><div class="tab" id="to">Outputs</div><div class="tab" id="ts">Scores</div></div>
+        <div class="content" id="content"></div>
+      </div>
+    </div>
+    <script>
+      let DATA = null;
+      const state = { scenario:null, query:'', active:'prompt', trace:[], selected:{instructions:[], facts:[], tools:[]}, prompt:null, outputs:{engineered:'', baseline:''}, scores:null };
+      const STOP = new Set('the a an and or of to for in on with by as is are be this that those these from into over under at it its their our your you we they'.split(' '));
+      function toks(s){ return (s||'').toLowerCase().match(/[a-z][a-z0-9_-]+/g)||[] }
+      function kw(s,limit=30){ const arr = toks(s).filter(t=> !STOP.has(t) && t.length>3); const f={}; arr.forEach(t=> f[t]=(f[t]||0)+1); return Object.entries(f).sort((a,b)=>b[1]-a[1]).slice(0,limit).map(x=>x[0]) }
+
+      function selectFacts(query){
+        const q = kw(query, 40); const scored=[];
+        for(const it of DATA.kb){ const txt=(it.title+'\n'+it.text).toLowerCase(); let s=0; for(const t of q){ if(txt.includes(t)) s++ } if(s>0) scored.push({score:s, it}) }
+        scored.sort((a,b)=> b.score-a.score); return {facts: scored.slice(0,5).map(s=> s.it.text), ranking: scored.slice(0,5).map(s=> ({id:s.it.id, title:s.it.title, score:s.score}))}
+      }
+      function selectTools(query){ const q=kw(query,40); const out=[]; for(const t of DATA.tools){ let s=Math.round(t.success*100); for(const w of q){ if(t.name.includes(w)) s+=2; if((t.description||'').includes(w)) s+=1 } out.push({score:s, name:t.name}) } out.sort((a,b)=> b.score-a.score); return out.slice(0,4) }
+
+      function engineeredPrompt(query){
+        const rules = DATA.rules;
+        const fsel = selectFacts(query);
+        const tools = selectTools(query);
+        state.selected.instructions = rules;
+        state.selected.facts = fsel.facts;
+        state.selected.tools = tools.map(x=> x.name);
+        state.trace = [
+          {phase:'write', component:'scratchpad', explain:'Plan initialized'},
+          {phase:'select', component:'instruction.keyword', kind:'selector', added:{instructions:rules}, explain:{}},
+          {phase:'select', component:'fact.embedding', kind:'selector', added:{facts:fsel.facts}, explain:{ranking:fsel.ranking}},
+          {phase:'select', component:'tool.rag', kind:'selector', added:{tools:tools.map(x=>x.name)}, explain:{ranking:tools}},
+          {phase:'optimize', component:'optimizer', kind:'optimizer', decision:{should_summarize:false, remaining_input_budget:5800}},
+          {phase:'generate', component:'llm', kind:'adapter'}
+        ];
+        const system = [
+          'You are an expert enterprise architect. Provide a polished, executive-ready deliverable.',
+          'Do not mention internal process, context sources, or headings like instructions/facts/tools/plan.',
+          'Do not restate the question; go straight to the answer.',
+          'Output Requirements:\n- Clear structure with concise sections.\n- No meta commentary.\n- No references to internal steps (write/select/compress/isolate/optimize).\n- Deliverables: Objectives, Phases (with owners/gates), Risks & Mitigations, Evidence/SLAs, Next Steps.'
+        ].join('\n');
+        const facts_attr = state.selected.facts.map((text,i)=> {
+          const tl = state.selected.tools.find(n=> text.toLowerCase().includes('event') && n.includes('event_mesh')) || null;
+          const kb = (state.trace.find(t=> t.component==='fact.embedding')?.explain?.ranking||[])[i]?.title || null;
+          return {text, tool: tl, kb};
+        });
+        state.prompt = { system, user: query, sources:{instructions: rules, facts: state.selected.facts, tools: state.selected.tools}, facts_attribution: facts_attr };
+      }
+
+      function generateOutputs(){
+        // Baseline: generic structure
+        const q = state.query;
+        const base = `# Plan\n\n- Establish capability for: ${q}\n- Implement dashboards/alerts and runbooks.\n- Validate with tests and stakeholder reviews.`
+        // Engineered: sectioned
+        const eng = `**Objectives**\n- Deliver ${q}.\n\n**Phases**\n- Design: owners/gates.\n- Implement: deploy components.\n- Test: validate KPIs.\n\n**Risks & Mitigations**\n- Alert fatigue → tune thresholds.\n- Data loss → backup cadence + drills.\n\n**Evidence/SLAs**\n- Dashboards, audit logs, drill reports.\n\n**Next Steps**\n- Schedule design review; kickoff implementation.`
+        state.outputs = {baseline: base, engineered: eng};
+      }
+
+      function score(output, selected, query){
+        const want=['objectives','phases','risks','mitigations','evidence','sla','slas','next steps'];
+        const low=(output||'').toLowerCase();
+        const sectionHits = want.reduce((n,w)=> n + (low.includes(w)?1:0), 0);
+        const sectionCov = sectionHits / 7;
+        const lines = (output||'').split('\n').map(x=>x.trim());
+        const bullets = lines.filter(ln=> ln.startsWith('- ')||ln.startsWith('* ')||/^\d+\./.test(ln)).length;
+        const verbs=['implement','define','configure','deploy','monitor','test','mitigate','schedule','assign','review','measure','gate','integrate','alert','trace'];
+        const verbHits = lines.reduce((n,ln)=> n + verbs.reduce((m,v)=> m + (ln.toLowerCase().includes(' '+v+' ')||ln.toLowerCase().startsWith(v)?1:0),0),0);
+        const actionability = Math.min(1.0, bullets*0.02 + verbHits*0.02);
+        const outKW = new Set(kw(output));
+        let overlap=0.0; if(query){ const qkw=new Set(kw(query)); const inter=[...qkw].filter(x=> outKW.has(x)); overlap = inter.length/Math.max(1,qkw.size) }
+        const approxTokens = Math.max(1, (output||'').length/4);
+        const conciseness = approxTokens<=800?1.0:Math.max(0.0, 1.0 - (approxTokens-800)/800);
+        const composite = Math.round((0.35*sectionCov + 0.35*actionability + 0.2*overlap + 0.1*conciseness)*1000)/1000;
+        return {sectionCov:round3(sectionCov), actionability:round3(actionability), relevance:round3(overlap), conciseness:round3(conciseness), composite};
+      }
+      function round3(x){ return Math.round(x*1000)/1000 }
+
+      function render(){
+        const ctx=document.getElementById('ctx'); const tools=document.getElementById('tools'); const content=document.getElementById('content');
+        // Toolbar
+        tools.innerHTML='';
+        const sel = h('select'); sel.appendChild(opt('', 'Choose scenario…'));
+        Object.keys(DATA.scenarios).forEach(k=> sel.appendChild(opt(k,k)));
+        sel.onchange=()=>{ state.scenario=sel.value; state.query=DATA.scenarios[state.scenario]||''; run() };
+        const ta = h('textarea'); ta.style.flex='1'; ta.value=state.query; ta.oninput=()=> state.query=ta.value;
+        const btn = h('button','primary'); btn.textContent='Simulate'; btn.onclick=run;
+        tools.appendChild(sel); tools.appendChild(ta); tools.appendChild(btn);
+        // Side panel
+        ctx.innerHTML='';
+        ctx.appendChild(block('Model / Budget', row(pill('simulated'), pill('in~260'), pill('out~450'))));
+        const steps = state.trace.map(t=> small(`${t.phase}: ${t.component || ''}`));
+        ctx.appendChild(block('Pipeline', ...steps));
+        ctx.appendChild(block('Selected Context', small(`Instructions=${state.selected.instructions.length}`), small(`Facts=${state.selected.facts.length}`), small(`Tools=${state.selected.tools.join(', ')}`)));
+
+        // Tabs
+        const promptTab=document.getElementById('tp'); const outTab=document.getElementById('to'); const scoreTab=document.getElementById('ts');
+        [promptTab,outTab,scoreTab].forEach(el=> el.classList.remove('active'));
+        if(state.active==='prompt') promptTab.classList.add('active');
+        if(state.active==='outputs') outTab.classList.add('active');
+        if(state.active==='scores') scoreTab.classList.add('active');
+        promptTab.onclick=()=>{ state.active='prompt'; render() };
+        outTab.onclick=()=>{ state.active='outputs'; render() };
+        scoreTab.onclick=()=>{ state.active='scores'; render() };
+
+        content.innerHTML='';
+        if(state.active==='prompt'){
+          const src = state.prompt || {};
+          content.appendChild(block('Engineered Prompt', small('System Preamble'), mono((src.system||'').split('\n\n')[0]||'')));
+          content.appendChild(block('', chip('House Rules','inst'), mono((src.sources?.instructions||[]).slice(0,2).join('\n\n'))));
+          const factsBox = block('', chip('Reference Notes','fact'));
+          (src.facts_attribution||[]).slice(0,5).forEach(fa=> factsBox.appendChild(div(small((fa.tool?`tool:${fa.tool} `:'kb ')+(fa.kb||'')), mono(fa.text||''))));
+          content.appendChild(factsBox);
+          content.appendChild(block('Output Requirements', mono(((src.system||'').match(/Output Requirements:[\s\S]*/)||[''])[0]||'')));
+          content.appendChild(block('User Query', mono(src.user||state.query||'')));
+        }
+        if(state.active==='outputs'){
+          content.appendChild(div(className('two'), block('Baseline (No Context Engineering)', mono(state.outputs.baseline)), block('Context‑Engineered', mono(state.outputs.engineered))));
+        }
+        if(state.active==='scores'){
+          const base = score(state.outputs.baseline, null, state.query);
+          const eng = score(state.outputs.engineered, {instructions: state.selected.instructions, facts: state.selected.facts}, state.query);
+          const left = block('Baseline', row(pill(`Sections ${base.sectionCov}`), pill(`Action ${base.actionability}`), pill(`Relevant ${base.relevance}`), pill(`Concise ${base.conciseness}`), pill(`Composite ${base.composite}`)));
+          const right = block('Context‑Engineered', row(pill(`Sections ${eng.sectionCov}`), pill(`Action ${eng.actionability}`), pill(`Relevant ${eng.relevance}`), pill(`Concise ${eng.conciseness}`), pill(`Composite ${eng.composite}`)));
+          content.appendChild(div(className('two'), left, right));
+        }
+      }
+
+      function run(){ engineeredPrompt(state.query); generateOutputs(); render() }
+
+      function h(tag, cls){ const el=document.createElement(tag); if(cls) el.className=cls; return el }
+      function block(title, ...children){ const b=h('div','block'); if(title) b.appendChild(div(str(title))); children.forEach(c=> b.appendChild(c)); return b }
+      function row(...children){ const r=h('div','row'); children.forEach(c=> r.appendChild(c)); return r }
+      function pill(text){ const p=h('span','pill'); p.textContent=text; return p }
+      function small(text){ const s=h('div','small'); s.textContent=text; return s }
+      function mono(text){ const m=h('div','mono'); m.textContent=text; return m }
+      function chip(text, kind){ const c=h('span','chip '+(kind||'')); c.textContent=text; return c }
+      function div(...children){ const d=h('div'); children.forEach(c=> d.appendChild(c)); return d }
+      function opt(v,l){ const o=document.createElement('option'); o.value=v; o.textContent=l; return o }
+      function className(n){ return n }
+
+      fetch('demo_data.json').then(r=> r.json()).then(d=> { DATA=d; render() })
+    </script>
+  </body>
+  </html>
+

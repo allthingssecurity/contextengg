@@ -1,0 +1,99 @@
+<agent_design_template>
+  <purpose>Guide the construction of AI agents with principled context engineering across four dimensions: write, select, compress, isolate.</purpose>
+  <governance>Follows cognitive architecture inspired by human memory and OS-like resource management.</governance>
+
+  <writing>
+    <scratchpad>
+      <purpose>Persist working artifacts during task execution</purpose>
+      <storage_options>
+        <option>Filesystem</option>
+        <option>Runtime state</option>
+        <option>In-memory buffer</option>
+      </storage_options>
+      <lifecycle>Task start to completion/timeout</lifecycle>
+    </scratchpad>
+    <memory>
+      <types>
+        <episodic>Recorded interactions</episodic>
+        <semantic>Facts and preferences</semantic>
+        <procedural>Instructions and style rules</procedural>
+      </types>
+      <integration>Selected by policy, not auto-injected</integration>
+    </memory>
+  </writing>
+
+  <selecting>
+    <instruction_selection>
+      <sources>
+        <file>.rules.md</file>
+        <file>style_guide.json</file>
+      </sources>
+    </instruction_selection>
+    <fact_retrieval>
+      <sources>
+        <vector_db>Embedded docs</vector_db>
+        <graph_db>Relational knowledge</graph_db>
+        <search_tool>File/search index</search_tool>
+      </sources>
+    </fact_retrieval>
+    <tool_selection>
+      <solution>RAG over tool metadata</solution>
+    </tool_selection>
+  </selecting>
+
+  <compressing>
+    <summarization>
+      <levels>
+        <full_trajectory/>
+        <completed_work/>
+        <inter_agent/>
+      </levels>
+    </summarization>
+    <trimming>
+      <heuristic_based/>
+      <llm_based/>
+      <boundary>Never trim user input or decisions</boundary>
+    </trimming>
+  </compressing>
+
+  <isolating>
+    <multi_agent>
+      <orchestrator/>
+      <researcher/>
+      <coder/>
+      <reviewer/>
+    </multi_agent>
+    <sandbox>
+      <execute_code/>
+      <persist_state/>
+      <selective_return/>
+    </sandbox>
+    <runtime_state>
+      <fields>
+        <plan/>
+        <memory_ref/>
+        <scratchpad_ref/>
+        <tool_history/>
+        <output_draft/>
+      </fields>
+    </runtime_state>
+  </isolating>
+
+  <lifecycle>
+    <step>Receive Query</step>
+    <step>Select context</step>
+    <step>Write plan/memory</step>
+    <step>Compress if near limits</step>
+    <step>Isolate heavy work</step>
+    <step>Generate and finalize</step>
+  </lifecycle>
+
+  <principles>
+    <minimal_viable_context/>
+    <delayed_injection/>
+    <layered_recall/>
+    <observability/>
+    <conflict_prevention/>
+  </principles>
+</agent_design_template>
+
